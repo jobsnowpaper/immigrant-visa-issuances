@@ -71,8 +71,7 @@
             font-size: 14px;
         }
         
-        .control-group select,
-        .control-group input {
+        .control-group select {
             width: 100%;
             padding: 10px 12px;
             border: 2px solid #dee2e6;
@@ -82,50 +81,9 @@
             background-color: white;
         }
         
-        .control-group select:focus,
-        .control-group input:focus {
+        .control-group select:focus {
             outline: none;
             border-color: #667eea;
-        }
-        
-        #uploadSection {
-            flex: 1;
-            min-width: 200px;
-        }
-        
-        .file-input-wrapper {
-            position: relative;
-            overflow: hidden;
-            display: inline-block;
-            width: 100%;
-        }
-        
-        .file-input-wrapper input[type=file] {
-            position: absolute;
-            left: -9999px;
-        }
-        
-        .file-input-label {
-            display: block;
-            padding: 10px 12px;
-            background-color: #667eea;
-            color: white;
-            border-radius: 6px;
-            cursor: pointer;
-            text-align: center;
-            font-weight: 500;
-            transition: background-color 0.2s; 
-        }
-        
-        .file-input-label:hover {
-            background-color: #5568d3;
-        }
-        
-        #fileName {
-            margin-top: 8px;
-            font-size: 12px;
-            color: #6c757d;
-            text-align: center;
         }
         
         #stats {
@@ -159,13 +117,13 @@
             width: 100%;
             height: 600px;
             background-color: #f8f9fa;
+            position: relative;
         }
         
         .country {
             stroke: #fff;
             stroke-width: 0.5;
             cursor: pointer;
-            transition: stroke-width 0.2s;
         }
         
         .country:hover {
@@ -230,6 +188,22 @@
             font-size: 16px;
         }
         
+        .loading-spinner {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
         .error {
             background-color: #f8d7da;
             color: #721c24;
@@ -244,7 +218,7 @@
     <div id="container">
         <header>
             <h1>US Visa Issuances by Country</h1>
-            <div id="subtitle">Upload CSV data and explore visa issuances worldwide</div>
+            <div id="subtitle">Exploring immigration visa data worldwide</div>
         </header>
         
         <div id="controls">
@@ -279,7 +253,10 @@
         </div>
         
         <div id="map">
-            <div id="loadingMessage">Loading visa issuance data...</div>
+            <div id="loadingMessage">
+                <div class="loading-spinner"></div>
+                <div>Loading visa issuance data...</div>
+            </div>
         </div>
         
         <div id="legend" style="display: none;">
@@ -299,20 +276,22 @@
     <div id="tooltip"></div>
 
     <script>
-        let fullData = [];
+        // Pre-aggregated data structure for performance
+        let aggregatedData = new Map();
+        let dates = [];
+        let visaClasses = [];
         let mapSvg, mapPath, mapProjection, mapColorScale;
         let worldData;
         
         const CSV_URL = 'https://raw.githubusercontent.com/jobsnowpaper/immigrant-visa-issuances/refs/heads/main/immigrant_visa_issuances.csv';
         
-        const width = 1360;
-        const height = 600;
+        const w = 1360;
+        const h = 600;
         
-        const countryNameMap = {
+        const countryMap = {
             "United States of America": "United States",
             "Dem. Rep. Congo": "Democratic Republic of the Congo",
             "Congo": "Republic of the Congo",
-            "Myanmar": "Myanmar",
             "Côte d'Ivoire": "Ivory Coast",
             "United Republic of Tanzania": "Tanzania",
             "eSwatini": "Eswatini",
@@ -320,154 +299,157 @@
             "Republic of Serbia": "Serbia",
             "N. Cyprus": "Cyprus",
             "Timor-Leste": "East Timor",
-            "Palestine": "Palestinian Territories",
-            "W. Sahara": "Western Sahara",
-            "Somaliland": "Somalia",
             "S. Sudan": "South Sudan"
         };
         
         // Initialize map
         function initMap() {
-            const mapContainer = d3.select("#map");
-            mapContainer.select("svg").remove();
+            const mapEl = d3.select("#map");
+            mapEl.select("svg").remove();
             
-            mapSvg = mapContainer
+            mapSvg = mapEl
                 .append("svg")
-                .attr("viewBox", `0 0 ${width} ${height}`)
+                .attr("viewBox", `0 0 ${w} ${h}`)
                 .attr("preserveAspectRatio", "xMidYMid meet");
             
             mapProjection = d3.geoNaturalEarth1()
                 .scale(220)
-                .translate([width / 2, height / 2]);
+                .translate([w / 2, h / 2]);
             
             mapPath = d3.geoPath().projection(mapProjection);
             
             d3.json("https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json")
                 .then(world => {
                     worldData = topojson.feature(world, world.objects.countries);
-                    updateMap();
+                    renderMap();
                 })
-                .catch(error => {
-                    console.error("Error loading map:", error);
+                .catch(err => {
+                    console.error("Map load error:", err);
                     document.getElementById("map").innerHTML = 
-                        '<div class="error">Error loading map data. Please refresh the page.</div>';
+                        '<div class="error">Error loading map. Please refresh.</div>';
                 });
         }
         
-        // Load CSV data from GitHub
+        // Load and aggregate CSV data
         function loadData() {
-            Papa.parse(CSV_URL, {
-                download: true,
-                header: true,
-                skipEmptyLines: true,
-                complete: function(results) {
-                    fullData = results.data;
-                    processData();
-                },
-                error: function(error) {
-                    console.error("Error loading CSV:", error);
+            const dateSet = new Set();
+            const visaSet = new Set();
+            let rowCount = 0;
+            
+            fetch(CSV_URL)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.text();
+                })
+                .then(csvText => {
+                    Papa.parse(csvText, {
+                        header: true,
+                        skipEmptyLines: true,
+                        step: function(row) {
+                            const d = row.data;
+                            const date = d.date;
+                            const country = d.country;
+                            const visa = d.visa_class;
+                            const num = parseInt(d.issuances) || 0;
+                            
+                            if (!date || !country || !visa) return;
+                            
+                            dateSet.add(date);
+                            visaSet.add(visa);
+                            
+                            // Create composite key: date|visa|country
+                            const key = `${date}|${visa}|${country}`;
+                            aggregatedData.set(key, (aggregatedData.get(key) || 0) + num);
+                            
+                            // Also store for "ALL" visa classes
+                            const allKey = `${date}|ALL|${country}`;
+                            aggregatedData.set(allKey, (aggregatedData.get(allKey) || 0) + num);
+                            
+                            rowCount++;
+                            
+                            // Update loading message every 10k rows
+                            if (rowCount % 10000 === 0) {
+                                document.getElementById('loadingMessage').innerHTML = 
+                                    `<div class="loading-spinner"></div><div>Processing ${rowCount.toLocaleString()} rows...</div>`;
+                            }
+                        },
+                        complete: function() {
+                            console.log(`Loaded ${rowCount} rows`);
+                            dates = Array.from(dateSet).sort();
+                            visaClasses = Array.from(visaSet).sort();
+                            processData();
+                        },
+                        error: function(err) {
+                            console.error("Parse error:", err);
+                            document.getElementById('map').innerHTML = 
+                                '<div class="error">Error parsing data. Please check console for details.</div>';
+                        }
+                    });
+                })
+                .catch(err => {
+                    console.error("Fetch error:", err);
                     document.getElementById('map').innerHTML = 
-                        '<div class="error">Error loading data from GitHub. Please check your connection and refresh the page.</div>';
-                }
-            });
+                        `<div class="error">Error loading data: ${err.message}<br><br>This may be a CORS issue. Try accessing the page directly from GitHub Pages.</div>`;
+                });
         }
         
-        // Handle CSV upload
-        document.getElementById('csvFile').addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-            
-            document.getElementById('fileName').textContent = file.name;
-            document.getElementById('loadingMessage').textContent = 'Loading data...';
-            
-            Papa.parse(file, {
-                header: true,
-                skipEmptyLines: true,
-                complete: function(results) {
-                    fullData = results.data;
-                    processData();
-                },
-                error: function(error) {
-                    console.error("Error parsing CSV:", error);
-                    document.getElementById('map').innerHTML = 
-                        '<div class="error">Error parsing CSV file. Please check the format.</div>';
-                }
-            });
-        });
-        
-        // Process data and populate dropdowns
+        // Populate dropdowns
         function processData() {
-            if (fullData.length === 0) return;
+            const dateEl = document.getElementById('dateSelect');
+            dateEl.innerHTML = dates.map(d => `<option value="${d}">${d}</option>`).join('');
+            dateEl.disabled = false;
+            dateEl.value = dates[dates.length - 1];
             
-            // Extract unique dates and visa classes
-            const dates = [...new Set(fullData.map(d => d.date))].sort();
-            const visaClasses = [...new Set(fullData.map(d => d.visa_class))].sort();
-            
-            // Populate date dropdown
-            const dateSelect = document.getElementById('dateSelect');
-            dateSelect.innerHTML = dates.map(d => `<option value="${d}">${d}</option>`).join('');
-            dateSelect.disabled = false;
-            
-            // Populate visa class dropdown
-            const visaClassSelect = document.getElementById('visaClassSelect');
-            visaClassSelect.innerHTML = '<option value="ALL">All Visa Classes</option>' + 
+            const visaEl = document.getElementById('visaClassSelect');
+            visaEl.innerHTML = '<option value="ALL">All Visa Classes</option>' + 
                 visaClasses.map(v => `<option value="${v}">${v}</option>`).join('');
-            visaClassSelect.disabled = false;
+            visaEl.disabled = false;
+            visaEl.value = 'ALL';
             
-            // Set default selections
-            dateSelect.value = dates[dates.length - 1];
-            visaClassSelect.value = 'ALL';
-            
-            // Initialize map
             initMap();
             
-            // Add event listeners
-            dateSelect.addEventListener('change', updateMap);
-            visaClassSelect.addEventListener('change', updateMap);
+            dateEl.addEventListener('change', renderMap);
+            visaEl.addEventListener('change', renderMap);
         }
         
-        // Update map based on selections
-        function updateMap() {
+        // Render map with current selections
+        function renderMap() {
             if (!worldData) return;
             
-            const selectedDate = document.getElementById('dateSelect').value;
-            const selectedVisaClass = document.getElementById('visaClassSelect').value;
+            const date = document.getElementById('dateSelect').value;
+            const visa = document.getElementById('visaClassSelect').value;
             
-            // Filter data
-            let filteredData = fullData.filter(d => d.date === selectedDate);
-            
-            if (selectedVisaClass !== 'ALL') {
-                filteredData = filteredData.filter(d => d.visa_class === selectedVisaClass);
-            }
-            
-            // Aggregate by country
+            // Build country data from pre-aggregated structure
             const countryData = {};
-            filteredData.forEach(d => {
-                const country = d.country;
-                const issuances = parseInt(d.issuances) || 0;
-                countryData[country] = (countryData[country] || 0) + issuances;
+            
+            aggregatedData.forEach((value, key) => {
+                const [d, v, c] = key.split('|');
+                if (d === date && v === visa) {
+                    countryData[c] = value;
+                }
             });
             
-            // Update statistics
-            const totalIssuances = Object.values(countryData).reduce((a, b) => a + b, 0);
-            const countryCount = Object.keys(countryData).length;
-            const maxCountryEntry = Object.entries(countryData).sort((a, b) => b[1] - a[1])[0];
+            // Stats
+            const total = Object.values(countryData).reduce((a, b) => a + b, 0);
+            const count = Object.keys(countryData).length;
+            const top = Object.entries(countryData).sort((a, b) => b[1] - a[1])[0];
             
-            document.getElementById('totalIssuances').textContent = totalIssuances.toLocaleString();
-            document.getElementById('countryCount').textContent = countryCount;
-            document.getElementById('maxCountry').textContent = maxCountryEntry ? maxCountryEntry[0] : '—';
+            document.getElementById('totalIssuances').textContent = total.toLocaleString();
+            document.getElementById('countryCount').textContent = count;
+            document.getElementById('maxCountry').textContent = top ? top[0] : '—';
             
-            // Update color scale
-            const maxValue = Math.max(...Object.values(countryData));
+            // Color scale
+            const max = Math.max(...Object.values(countryData), 1);
             mapColorScale = d3.scaleSequential()
-                .domain([0, Math.log(maxValue + 1)])
+                .domain([0, Math.log(max + 1)])
                 .interpolator(d3.interpolateBlues);
             
-            // Clear existing paths
+            // Clear and redraw
             mapSvg.selectAll("path").remove();
             
-            // Draw countries
-            const tooltip = d3.select("#tooltip");
+            const tip = d3.select("#tooltip");
             
             mapSvg.selectAll("path")
                 .data(worldData.features)
@@ -476,37 +458,32 @@
                 .attr("class", "country")
                 .attr("d", mapPath)
                 .attr("fill", d => {
-                    const countryName = d.properties.name;
-                    const mappedName = countryNameMap[countryName] || countryName;
-                    const value = countryData[mappedName];
-                    return value ? mapColorScale(Math.log(value + 1)) : "#e0e0e0";
+                    const name = countryMap[d.properties.name] || d.properties.name;
+                    const val = countryData[name];
+                    return val ? mapColorScale(Math.log(val + 1)) : "#e0e0e0";
                 })
-                .on("mouseover", function(event, d) {
-                    const countryName = d.properties.name;
-                    const mappedName = countryNameMap[countryName] || countryName;
-                    const value = countryData[mappedName];
+                .on("mouseover", function(e, d) {
+                    const name = countryMap[d.properties.name] || d.properties.name;
+                    const val = countryData[name];
                     
-                    if (value) {
-                        tooltip
-                            .style("display", "block")
-                            .html(`<strong>${mappedName}</strong><br/>Issuances: ${value.toLocaleString()}`);
+                    if (val) {
+                        tip.style("display", "block")
+                           .html(`<strong>${name}</strong><br/>Issuances: ${val.toLocaleString()}`);
                     }
                 })
-                .on("mousemove", function(event) {
-                    tooltip
-                        .style("left", (event.pageX + 10) + "px")
-                        .style("top", (event.pageY - 28) + "px");
+                .on("mousemove", function(e) {
+                    tip.style("left", (e.pageX + 10) + "px")
+                       .style("top", (e.pageY - 28) + "px");
                 })
                 .on("mouseout", function() {
-                    tooltip.style("display", "none");
+                    tip.style("display", "none");
                 });
             
-            // Show legend
             document.getElementById('legend').style.display = 'block';
             document.getElementById('loadingMessage').style.display = 'none';
         }
         
-        // Load data on page load
+        // Start loading on page load
         window.addEventListener('DOMContentLoaded', loadData);
     </script>
 </body>
