@@ -223,7 +223,7 @@
         
         <div id="controls">
             <div class="control-group">
-                <label for="dateSelect">Date</label>
+                <label for="dateSelect">Year</label>
                 <select id="dateSelect" disabled>
                     <option value="">Loading data...</option>
                 </select>
@@ -543,15 +543,18 @@
                             
                             if (!date || !country || !visa) return;
                             
-                            dateSet.add(date);
+                            // Extract year from date (format: YYYY-MM)
+                            const year = date.split('-')[0];
+                            
+                            dateSet.add(year);
                             visaSet.add(visa);
                             
-                            // Create composite key: date|visa|country
-                            const key = `${date}|${visa}|${country}`;
+                            // Create composite key: year|visa|country
+                            const key = `${year}|${visa}|${country}`;
                             aggregatedData.set(key, (aggregatedData.get(key) || 0) + num);
                             
                             // Also store for "ALL" visa classes
-                            const allKey = `${date}|ALL|${country}`;
+                            const allKey = `${year}|ALL|${country}`;
                             aggregatedData.set(allKey, (aggregatedData.get(allKey) || 0) + num);
                             
                             rowCount++;
