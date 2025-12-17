@@ -302,6 +302,27 @@
             "S. Sudan": "South Sudan"
         };
         
+        // Normalize country names from CSV
+        function normalizeCountryName(country) {
+            if (!country) return country;
+            
+            // Handle all China variations
+            if (country.includes('China') || country.includes('mainland')) {
+                if (country.includes('Taiwan')) {
+                    return 'Taiwan';
+                }
+                return 'China';
+            }
+            
+            // Handle other common variations
+            const normalized = country
+                .replace(/‚Äì/g, '-')  // Fix encoding issues
+                .replace(/\s+/g, ' ')   // Normalize whitespace
+                .trim();
+            
+            return normalized;
+        }
+        
         const visaNames = {
             // Immediate Relatives
             "IR1": "Spouse of US Citizen",
@@ -537,11 +558,14 @@
                         step: function(row) {
                             const d = row.data;
                             const date = d.date;
-                            const country = d.country;
+                            const rawCountry = d.country;
                             const visa = d.visa_class;
                             const num = parseInt(d.issuances) || 0;
                             
-                            if (!date || !country || !visa) return;
+                            if (!date || !rawCountry || !visa) return;
+                            
+                            // Normalize country name
+                            const country = normalizeCountryName(rawCountry);
                             
                             // Extract year from date (format: YYYY-MM)
                             const year = date.split('-')[0];
