@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>US Visa Issuances by Country</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        #container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+        
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        h1 {
+            font-size: 32px;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+        
+        #subtitle {
+            font-size: 16px;
+            opacity: 0.9;
+        }
+        
+        #controls {
+            padding: 30px;
+            background-color: #f8f9fa;
+            border-bottom: 1px solid #dee2e6;
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            align-items: flex-end;
+        }
+        
+        .control-group {
+            flex: 1;
+            min-width: 200px;
+        }
+        
+        .control-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #495057;
+            font-size: 14px;
+        }
+        
+        .control-group select,
+        .control-group input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 2px solid #dee2e6;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+            background-color: white;
+        }
+        
+        .control-group select:focus,
+        .control-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        #uploadSection {
+            flex: 1;
+            min-width: 200px;
+        }
+        
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+            width: 100%;
+        }
+        
+        .file-input-wrapper input[type=file] {
+            position: absolute;
+            left: -9999px;
+        }
+        
+        .file-input-label {
+            display: block;
+            padding: 10px 12px;
+            background-color: #667eea;
+            color: white;
+            border-radius: 6px;
+            cursor: pointer;
+            text-align: center;
+            font-weight: 500;
+            transition: background-color 0.2s;
+        }
+        
+        .file-input-label:hover {
+            background-color: #5568d3;
+        }
+        
+        #fileName {
+            margin-top: 8px;
+            font-size: 12px;
+            color: #6c757d;
+            text-align: center;
+        }
+        
+        #stats {
+            padding: 20px 30px;
+            background-color: #e9ecef;
+            display: flex;
+            gap: 30px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
+        .stat-item {
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: #667eea;
+        }
+        
+        .stat-label {
+            font-size: 12px;
+            color: #6c757d;
+            margin-top: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        #map {
+            width: 100%;
+            height: 600px;
+            background-color: #f8f9fa;
+        }
+        
+        .country {
+            stroke: #fff;
+            stroke-width: 0.5;
+            cursor: pointer;
+            transition: stroke-width 0.2s;
+        }
+        
+        .country:hover {
+            stroke: #333;
+            stroke-width: 1.5;
+        }
+        
+        #tooltip {
+            position: absolute;
+            background-color: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 12px 16px;
+            border-radius: 6px;
+            pointer-events: none;
+            display: none;
+            font-size: 14px;
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        
+        #tooltip strong {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 16px;
+        }
+        
+        #legend {
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .legend-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 12px;
+        }
+        
+        .legend-scale {
+            display: inline-block;
+            width: 600px;
+            height: 20px;
+            background: linear-gradient(to right, #f7fbff, #08519c);
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        
+        .legend-labels {
+            display: flex;
+            justify-content: space-between;
+            max-width: 600px;
+            margin: 0 auto;
+            font-size: 12px;
+            color: #6c757d;
+        }
+        
+        #loadingMessage {
+            text-align: center;
+            padding: 40px;
+            color: #6c757d;
+            font-size: 16px;
+        }
+        
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 12px 16px;
+            border-radius: 6px;
+            margin: 20px 30px;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <header>
+            <h1>US Visa Issuances by Country</h1>
+            <div id="subtitle">Upload CSV data and explore visa issuances worldwide</div>
+        </header>
+        
+        <div id="controls">
+            <div class="control-group">
+                <label for="dateSelect">Date</label>
+                <select id="dateSelect" disabled>
+                    <option value="">Loading data...</option>
+                </select>
+            </div>
+            
+            <div class="control-group">
+                <label for="visaClassSelect">Visa Class</label>
+                <select id="visaClassSelect" disabled>
+                    <option value="">Loading data...</option>
+                </select>
+            </div>
+        </div>
+        
+        <div id="stats">
+            <div class="stat-item">
+                <div class="stat-value" id="totalIssuances">0</div>
+                <div class="stat-label">Total Issuances</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="countryCount">0</div>
+                <div class="stat-label">Countries</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-value" id="maxCountry">—</div>
+                <div class="stat-label">Top Country</div>
+            </div>
+        </div>
+        
+        <div id="map">
+            <div id="loadingMessage">Loading visa issuance data...</div>
+        </div>
+        
+        <div id="legend" style="display: none;">
+            <div class="legend-title">Visa Issuances (Log Scale)</div>
+            <div class="legend-scale"></div>
+            <div class="legend-labels">
+                <span>0</span>
+                <span>10</span>
+                <span>100</span>
+                <span>1K</span>
+                <span>10K</span>
+                <span>100K+</span>
+            </div>
+        </div>
+    </div>
+    
+    <div id="tooltip"></div>
+
+    <script>
+        let fullData = [];
+        let mapSvg, mapPath, mapProjection, mapColorScale;
+        let worldData;
+        
+        const CSV_URL = 'https://raw.githubusercontent.com/jobsnowpaper/immigrant-visa-issuances/refs/heads/main/immigrant_visa_issuances.csv';
+        
+        const width = 1360;
+        const height = 600;
+        
+        const countryNameMap = {
+            "United States of America": "United States",
+            "Dem. Rep. Congo": "Democratic Republic of the Congo",
+            "Congo": "Republic of the Congo",
+            "Myanmar": "Myanmar",
+            "Côte d'Ivoire": "Ivory Coast",
+            "United Republic of Tanzania": "Tanzania",
+            "eSwatini": "Eswatini",
+            "Czechia": "Czech Republic",
+            "Republic of Serbia": "Serbia",
+            "N. Cyprus": "Cyprus",
+            "Timor-Leste": "East Timor",
+            "Palestine": "Palestinian Territories",
+            "W. Sahara": "Western Sahara",
+            "Somaliland": "Somalia",
+            "S. Sudan": "South Sudan"
+        };
+        
+        // Initialize map
+        function initMap() {
+            const mapContainer = d3.select("#map");
+            mapContainer.select("svg").remove();
+            
+            mapSvg = mapContainer
+                .append("svg")
+                .attr("viewBox", `0 0 ${width} ${height}`)
+                .attr("preserveAspectRatio", "xMidYMid meet");
+            
+            mapProjection = d3.geoNaturalEarth1()
+                .scale(220)
+                .translate([width / 2, height / 2]);
+            
+            mapPath = d3.geoPath().projection(mapProjection);
+            
+            d3.json("https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json")
+                .then(world => {
+                    worldData = topojson.feature(world, world.objects.countries);
+                    updateMap();
+                })
+                .catch(error => {
+                    console.error("Error loading map:", error);
+                    document.getElementById("map").innerHTML = 
+                        '<div class="error">Error loading map data. Please refresh the page.</div>';
+                });
+        }
+        
+        // Load CSV data from GitHub
+        function loadData() {
+            Papa.parse(CSV_URL, {
+                download: true,
+                header: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    fullData = results.data;
+                    processData();
+                },
+                error: function(error) {
+                    console.error("Error loading CSV:", error);
+                    document.getElementById('map').innerHTML = 
+                        '<div class="error">Error loading data from GitHub. Please check your connection and refresh the page.</div>';
+                }
+            });
+        }
+        
+        // Handle CSV upload
+        document.getElementById('csvFile').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            document.getElementById('fileName').textContent = file.name;
+            document.getElementById('loadingMessage').textContent = 'Loading data...';
+            
+            Papa.parse(file, {
+                header: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    fullData = results.data;
+                    processData();
+                },
+                error: function(error) {
+                    console.error("Error parsing CSV:", error);
+                    document.getElementById('map').innerHTML = 
+                        '<div class="error">Error parsing CSV file. Please check the format.</div>';
+                }
+            });
+        });
+        
+        // Process data and populate dropdowns
+        function processData() {
+            if (fullData.length === 0) return;
+            
+            // Extract unique dates and visa classes
+            const dates = [...new Set(fullData.map(d => d.date))].sort();
+            const visaClasses = [...new Set(fullData.map(d => d.visa_class))].sort();
+            
+            // Populate date dropdown
+            const dateSelect = document.getElementById('dateSelect');
+            dateSelect.innerHTML = dates.map(d => `<option value="${d}">${d}</option>`).join('');
+            dateSelect.disabled = false;
+            
+            // Populate visa class dropdown
+            const visaClassSelect = document.getElementById('visaClassSelect');
+            visaClassSelect.innerHTML = '<option value="ALL">All Visa Classes</option>' + 
+                visaClasses.map(v => `<option value="${v}">${v}</option>`).join('');
+            visaClassSelect.disabled = false;
+            
+            // Set default selections
+            dateSelect.value = dates[dates.length - 1];
+            visaClassSelect.value = 'ALL';
+            
+            // Initialize map
+            initMap();
+            
+            // Add event listeners
+            dateSelect.addEventListener('change', updateMap);
+            visaClassSelect.addEventListener('change', updateMap);
+        }
+        
+        // Update map based on selections
+        function updateMap() {
+            if (!worldData) return;
+            
+            const selectedDate = document.getElementById('dateSelect').value;
+            const selectedVisaClass = document.getElementById('visaClassSelect').value;
+            
+            // Filter data
+            let filteredData = fullData.filter(d => d.date === selectedDate);
+            
+            if (selectedVisaClass !== 'ALL') {
+                filteredData = filteredData.filter(d => d.visa_class === selectedVisaClass);
+            }
+            
+            // Aggregate by country
+            const countryData = {};
+            filteredData.forEach(d => {
+                const country = d.country;
+                const issuances = parseInt(d.issuances) || 0;
+                countryData[country] = (countryData[country] || 0) + issuances;
+            });
+            
+            // Update statistics
+            const totalIssuances = Object.values(countryData).reduce((a, b) => a + b, 0);
+            const countryCount = Object.keys(countryData).length;
+            const maxCountryEntry = Object.entries(countryData).sort((a, b) => b[1] - a[1])[0];
+            
+            document.getElementById('totalIssuances').textContent = totalIssuances.toLocaleString();
+            document.getElementById('countryCount').textContent = countryCount;
+            document.getElementById('maxCountry').textContent = maxCountryEntry ? maxCountryEntry[0] : '—';
+            
+            // Update color scale
+            const maxValue = Math.max(...Object.values(countryData));
+            mapColorScale = d3.scaleSequential()
+                .domain([0, Math.log(maxValue + 1)])
+                .interpolator(d3.interpolateBlues);
+            
+            // Clear existing paths
+            mapSvg.selectAll("path").remove();
+            
+            // Draw countries
+            const tooltip = d3.select("#tooltip");
+            
+            mapSvg.selectAll("path")
+                .data(worldData.features)
+                .enter()
+                .append("path")
+                .attr("class", "country")
+                .attr("d", mapPath)
+                .attr("fill", d => {
+                    const countryName = d.properties.name;
+                    const mappedName = countryNameMap[countryName] || countryName;
+                    const value = countryData[mappedName];
+                    return value ? mapColorScale(Math.log(value + 1)) : "#e0e0e0";
+                })
+                .on("mouseover", function(event, d) {
+                    const countryName = d.properties.name;
+                    const mappedName = countryNameMap[countryName] || countryName;
+                    const value = countryData[mappedName];
+                    
+                    if (value) {
+                        tooltip
+                            .style("display", "block")
+                            .html(`<strong>${mappedName}</strong><br/>Issuances: ${value.toLocaleString()}`);
+                    }
+                })
+                .on("mousemove", function(event) {
+                    tooltip
+                        .style("left", (event.pageX + 10) + "px")
+                        .style("top", (event.pageY - 28) + "px");
+                })
+                .on("mouseout", function() {
+                    tooltip.style("display", "none");
+                });
+            
+            // Show legend
+            document.getElementById('legend').style.display = 'block';
+            document.getElementById('loadingMessage').style.display = 'none';
+        }
+        
+        // Load data on page load
+        window.addEventListener('DOMContentLoaded', loadData);
+    </script>
+</body>
+</html>
