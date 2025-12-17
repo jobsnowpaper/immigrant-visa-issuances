@@ -302,6 +302,193 @@
             "S. Sudan": "South Sudan"
         };
         
+        const visaNames = {
+            // Immediate Relatives
+            "IR1": "Spouse of US Citizen",
+            "IR2": "Child of US Citizen",
+            "IR3": "Orphan Adopted Abroad",
+            "IR4": "Orphan to be Adopted in US",
+            "IR5": "Parent of US Citizen",
+            "IW": "Widower of US Citizen",
+            "IW1": "Widower of US Citizen",
+            "IW2": "Child of Widower",
+            "IB1": "Spouse of Lawful Permanent Resident",
+            "IB2": "Child of Lawful Permanent Resident",
+            "IB3": "Minor Child of LPR",
+            "IH3": "Child of IR",
+            "IH4": "Child of IR",
+            
+            // Family Preference
+            "F1": "Family 1st Preference",
+            "F11": "Unmarried Son/Daughter of US Citizen",
+            "F12": "Child of F1",
+            "F2": "Family 2nd Preference",
+            "F21": "Spouse of LPR",
+            "F22": "Child of LPR",
+            "F23": "Child of F2",
+            "F24": "Minor Child of LPR",
+            "F25": "Derivative of F2",
+            "F2A": "Spouse/Child of LPR",
+            "F2B": "Unmarried Son/Daughter of LPR",
+            "F3": "Family 3rd Preference",
+            "F31": "Married Son/Daughter of US Citizen",
+            "F32": "Spouse of F3",
+            "F33": "Child of F3",
+            "F4": "Family 4th Preference",
+            "F41": "Sibling of US Citizen",
+            "F42": "Spouse of F4",
+            "F43": "Child of F4",
+            "FX": "Family Preference (General)",
+            "FX1": "Principal Applicant",
+            "FX2": "Spouse",
+            "FX3": "Child",
+            
+            // Employment-Based
+            "E1": "Employment 1st Preference",
+            "E11": "Priority Workers",
+            "E12": "Outstanding Professors/Researchers",
+            "E13": "Multinational Executives",
+            "E14": "Derivative of E1",
+            "E15": "Derivative of E1",
+            "E2": "Employment 2nd Preference",
+            "E21": "Advanced Degree Professionals",
+            "E22": "Exceptional Ability",
+            "E23": "Derivative of E2",
+            "E3": "Employment 3rd Preference",
+            "E31": "Skilled Workers",
+            "E32": "Professionals",
+            "E34": "Derivative of E3",
+            "E35": "Religious Workers",
+            "E4": "Employment 4th Preference",
+            "EW": "Other Workers",
+            "EW3": "Unskilled Workers",
+            "EW4": "Derivative",
+            "EW5": "Derivative",
+            
+            // Diversity Visa
+            "DV": "Diversity Visa",
+            "DV1": "DV Principal Applicant",
+            "DV2": "DV Spouse",
+            "DV3": "DV Child",
+            
+            // Special Immigrants
+            "SI": "Special Immigrant",
+            "SI1": "Religious Workers",
+            "SI2": "Special Immigrant",
+            "SI3": "Special Immigrant Child",
+            "SE": "Special Immigrant (General)",
+            "SE1": "Special Immigrant Principal",
+            "SE2": "Special Immigrant Spouse",
+            "SE3": "Special Immigrant Child",
+            "SB1": "Returning Resident",
+            "SD1": "Special Immigrant",
+            "SD2": "Spouse of SD",
+            "SD3": "Child of SD",
+            "SQ": "Iraqi/Afghan Translator",
+            "SQ1": "Iraqi/Afghan Principal",
+            "SQ2": "Iraqi/Afghan Spouse",
+            "SQ3": "Iraqi/Afghan Child",
+            "SR": "Religious Worker",
+            "SR1": "Religious Worker Principal",
+            "SR2": "Religious Worker Spouse",
+            "SR3": "Religious Worker Child",
+            "SK1": "Physician",
+            "SK2": "Spouse of SK",
+            "SK3": "Child of SK",
+            "SU": "Special Immigrant Juvenile",
+            "SU2": "SIJ Spouse",
+            "SU3": "SIJ Child",
+            "SU5": "SIJ Derivative",
+            
+            // Conditional Resident
+            "CR1": "Conditional Resident Spouse",
+            "CR2": "Conditional Resident Child",
+            "C2A": "Conditional Resident",
+            "C21": "Conditional Resident Principal",
+            "C23": "Conditional Resident Child",
+            "C5": "Conditional Investor",
+            "C51": "Investor Principal",
+            "C52": "Investor Spouse",
+            "C53": "Investor Child",
+            "CQ": "Conditional Special Immigrant",
+            "CQ1": "CQ Principal",
+            "CQ2": "CQ Spouse",
+            "CQ3": "CQ Child",
+            "CX": "Conditional (General)",
+            "CX1": "CX Principal",
+            "CX2": "CX Spouse",
+            "CX3": "CX Child",
+            
+            // Amerasian
+            "AM": "Amerasian",
+            "AM1": "Amerasian Principal",
+            "AM2": "Amerasian Spouse",
+            "AM3": "Amerasian Child",
+            
+            // Follow-to-Join
+            "B21": "Refugee Spouse",
+            "B22": "Refugee Child",
+            "B23": "Refugee Derivative",
+            "B24": "Refugee Minor Child",
+            "B2A": "Refugee Family",
+            "B2B": "Asylee Family",
+            "BC": "Asylee (General)",
+            "BC1": "Asylee Principal",
+            "BC2": "Asylee Spouse",
+            "BC3": "Asylee Child",
+            "BX": "Follow-to-Join (General)",
+            "BX1": "FTJ Principal",
+            "BX2": "FTJ Spouse",
+            "BX3": "FTJ Child",
+            
+            // NACARA
+            "RU": "NACARA Principal",
+            "RU1": "NACARA Principal 1",
+            "RU2": "NACARA Spouse",
+            "RU3": "NACARA Child",
+            "RH": "NACARA",
+            "RH1": "NACARA Principal",
+            "RH2": "NACARA Spouse",
+            "RH3": "NACARA Child",
+            "RR": "NACARA Dependent",
+            "RR1": "NACARA Dependent 1",
+            "RR2": "NACARA Dependent 2",
+            "RR3": "NACARA Dependent 3",
+            "NH": "NACARA H",
+            "NR": "NACARA R",
+            "NU": "NACARA U",
+            
+            // Investor/Regional Center
+            "I5": "Investor",
+            "I51": "Investor Principal",
+            "I52": "Investor Spouse",
+            "I53": "Investor Child",
+            "R5": "Regional Center Investor",
+            "R51": "Regional Center Principal",
+            "R52": "Regional Center Spouse",
+            "R53": "Regional Center Child",
+            
+            // Trafficking/Crime Victims
+            "T5": "Trafficking Victim",
+            "T51": "T Visa Principal",
+            "T52": "T Visa Spouse",
+            "T53": "T Visa Child",
+            
+            // Other
+            "SW": "SWAP",
+            "RW": "Religious Worker",
+            "SG": "Special",
+            "SF": "Special",
+            "SSC": "Special",
+            "GV1": "General Visa 1",
+            "GV2": "General Visa 2",
+            "GV3": "General Visa 3"
+        };
+        
+        function getVisaDisplayName(code) {
+            return visaNames[code] || code;
+        }
+        
         // Initialize map
         function initMap() {
             const mapEl = d3.select("#map");
@@ -404,7 +591,7 @@
             
             const visaEl = document.getElementById('visaClassSelect');
             visaEl.innerHTML = '<option value="ALL">All Visa Classes</option>' + 
-                visaClasses.map(v => `<option value="${v}">${v}</option>`).join('');
+                visaClasses.map(v => `<option value="${v}">${v} - ${getVisaDisplayName(v)}</option>`).join('');
             visaEl.disabled = false;
             visaEl.value = 'ALL';
             
